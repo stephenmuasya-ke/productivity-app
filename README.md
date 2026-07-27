@@ -1,125 +1,292 @@
-# Workout Log API
+# Workout Tracker API
 
-A secure Flask REST API with JWT authentication and a user-owned **Workout Log** resource. Built for the Full Auth Flask Backend summative lab. Users can sign up, log in, and manage a private log of their own workouts — full CRUD with pagination — with no ability to see or touch another user's records.
+A Flask REST API that allows users to create accounts and manage their personal workout records.
 
-## Project structure
+Users can register, log in securely, and create, view, update, and delete their own workouts. The API uses JWT authentication to protect user data.
+
+## Features
+
+- User registration and login
+- JWT authentication
+- Secure password hashing
+- Workout CRUD operations
+- User-specific workout access
+- Pagination support
+- Database migrations
+- Automated testing with pytest
+
+
+## Project Structure
 
 ```
 workout-tracker-api/
+
 ├── app/
-│   ├── __init__.py         # app factory
-│   ├── extensions.py       # db, migrate, bcrypt, jwt instances
 │   ├── models/
-│   │   ├── user.py         # User model (bcrypt password, unique username)
-│   │   └── workout.py      # WorkoutLog model (owned by User)
+│   │   ├── user.py
+│   │   └── workout.py
+│   │
+│   ├── routes/
+│   │   ├── auth.py
+│   │   └── workouts.py
+│   │
 │   ├── schemas/
-│   │   ├── user_schema.py      # signup/login validation
-│   │   └── workout_schema.py   # workout create/update validation
-│   └── routes/
-│       ├── auth.py         # /api/auth/* endpoints
-│       └── workouts.py     # /api/workouts/* endpoints
-├── migrations/              # Flask-Migrate/Alembic migrations
-├── tests/                    # pytest suite (auth + workouts + ownership)
+│   │   ├── user_schema.py
+│   │   └── workout_schema.py
+│   │
+│   ├── extensions.py
+│   └── __init__.py
+│
+├── migrations/
+├── tests/
 ├── config.py
-├── run.py                    # flask entry point / shell context
-├── seed.py                   # Faker-based database seeding
-├── Pipfile
+├── run.py
+├── seed.py
 ├── requirements.txt
+├── Pipfile
 └── .flaskenv
 ```
 
 ## Installation
 
-Using **pipenv**:
+Create a virtual environment:
 
 ```bash
-pipenv install
-pipenv shell
+python -m venv .venv
 ```
 
-Or using **pip** + venv:
+Activate the environment:
+
+Windows:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-Then set up the database:
+## Database Setup
+
+Run migrations:
 
 ```bash
-export FLASK_APP=run.py        # already set via .flaskenv if using pipenv/flask CLI
-flask db init                  # only needed if migrations/ folder is missing
 flask db upgrade
-python seed.py                 # optional: creates demo data
 ```
 
-The seed script creates a demo account:
-- **username:** `demo`
-- **password:** `password123`
+To create sample data:
 
-## Running the app
+```bash
+python seed.py
+```
+
+Demo account:
+
+```
+Username: demo
+Password: password123
+```
+
+## Running the Application
+
+Start the Flask server:
 
 ```bash
 flask run
 ```
 
-The API runs on `http://127.0.0.1:5000` by default.
+The API will run at:
 
-## Running tests
+```
+http://127.0.0.1:5000
+```
+
+
+## Running Tests
+
+Run the tests using:
 
 ```bash
-python -m pytest tests/ -v
+pytest
 ```
 
-19 tests cover signup/login validation, password hashing, `/me`, workout CRUD, pagination, and cross-user ownership protection.
+The project includes tests for:
 
-## Authentication
+- User signup
+- User login
+- Authentication
+- Creating workouts
+- Viewing workouts
+- Updating workouts
+- Deleting workouts
+- User ownership protection
 
-This API uses **JWT** (via `flask-jwt-extended`). After signup or login, the response includes an `access_token`. Send it on every protected request:
+
+# API Documentation
+
+## Authentication Routes
+
+### Register User
 
 ```
-Authorization: Bearer <access_token>
+POST /api/auth/signup
 ```
 
-## Endpoints
+Example request:
 
-### Auth — `/api/auth`
+```json
+{
+    "username": "stephen",
+    "password": "password123"
+}
+```
 
-| Method | Endpoint | Auth required | Description |
-|---|---|---|---|
-| POST | `/api/auth/signup` | No | Create a new user. Body: `{ "username", "password" }`. Returns user + access token. Rejects duplicate usernames (422). |
-| POST | `/api/auth/login` | No | Log in with username/password. Returns user + access token, or 401 on bad credentials. |
-| GET | `/api/auth/me` | Yes | Returns the currently authenticated user (based on the JWT). 401 if token missing/invalid/expired. |
+---
 
-### Workout Logs — `/api/workouts`
+### Login User
 
-All routes below require a valid JWT and only ever operate on the logged-in user's own workouts. Requesting or modifying another user's workout returns `404` (not `403`), so existence of other users' records is never leaked.
+```
+POST /api/auth/login
+```
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/workouts?page=1&per_page=10` | Paginated list of the current user's workouts, newest first. Returns `page`, `per_page`, `total_pages`, `total_items`, `has_next`, `has_prev`. |
-| POST | `/api/workouts` | Create a workout. Body: `exercise_name` (str, required), `duration_minutes` (int, required), `calories_burned` (int, optional), `workout_date` (YYYY-MM-DD, optional, defaults to today), `notes` (str, optional). |
-| GET | `/api/workouts/<id>` | Fetch a single workout owned by the current user. |
-| PATCH / PUT | `/api/workouts/<id>` | Partially update a workout owned by the current user. Any subset of the fields above. |
-| DELETE | `/api/workouts/<id>` | Delete a workout owned by the current user. Returns `204`. |
+Example request:
 
-### Misc
+```json
+{
+    "username": "stephen",
+    "password": "password123"
+}
+```
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/health` | Basic health check, returns `{ "status": "ok" }`. |
+The response returns an access token.
 
-## Data model
+Use this token for protected routes:
 
-**User**
-- `id`, `username` (unique), `password_hash` (bcrypt, never exposed), `created_at`
+```
+Authorization: Bearer your_token_here
+```
 
-**WorkoutLog** (belongs to a User)
-- `id`, `user_id` (FK), `exercise_name`, `duration_minutes`, `calories_burned`, `workout_date`, `notes`, `created_at`, `updated_at`
+---
 
-## Notes on design decisions
+### Get Current User
 
-- Ownership checks are centralized in a single helper (`_get_owned_workout_or_error`) in `app/routes/workouts.py` so every show/update/delete route enforces the same rule the same way.
-- Marshmallow schemas validate all incoming payloads before they touch the database, returning `422` with field-level error messages on bad input.
-- Passwords are only ever stored as bcrypt hashes via a property setter on `User`; there is no way to read the hash back out.
+```
+GET /api/auth/me
+```
+
+Returns the currently logged-in user.
+
+
+# Workout Routes
+
+All workout routes require authentication.
+
+
+## View Workouts
+
+```
+GET /api/workouts
+```
+
+Returns all workouts belonging to the logged-in user.
+
+
+## Create Workout
+
+```
+POST /api/workouts
+```
+
+Example:
+
+```json
+{
+    "exercise_name": "Bench Press",
+    "duration_minutes": 45,
+    "calories_burned": 300,
+    "notes": "Chest workout"
+}
+```
+
+
+## View Single Workout
+
+```
+GET /api/workouts/<id>
+```
+
+
+## Update Workout
+
+```
+PATCH /api/workouts/<id>
+```
+
+Example:
+
+```json
+{
+    "duration_minutes": 60
+}
+```
+
+
+## Delete Workout
+
+```
+DELETE /api/workouts/<id>
+```
+
+
+# Database Models
+
+## User
+
+Stores account details:
+
+- id
+- username
+- password hash
+- created date
+
+
+## Workout
+
+Stores workout information:
+
+- id
+- user id
+- exercise name
+- duration minutes
+- calories burned
+- workout date
+- notes
+
+
+# Technologies Used
+
+- Python
+- Flask
+- Flask SQLAlchemy
+- Flask JWT Extended
+- Marshmallow
+- SQLite
+- Pytest
+
+
+# Project Overview
+
+This project was built to practice backend API development using Flask.
+
+It demonstrates:
+
+- Building REST APIs
+- User authentication
+- Database relationships
+- Data validation
+- CRUD operations
+- Automated testing
+
